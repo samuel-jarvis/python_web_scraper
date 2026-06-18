@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scraper"
+version = "0.1.0"
+description = "A web scraper for collecting book data from books.toscrape.com"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Samuel Adeyemi", email = "samueladeyemi244@gmail.com" }]
+keywords = ["scraper", "web-scraping", "beautifulsoup", "requests"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
+dependencies = [
+    "beautifulsoup4>=4.14,<5",
+    "pydantic>=2.0,<3",
+    "requests>=2.34,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "types-requests",
+]
+
+[project.scripts]
+scraper = "scraper.main:main"
+
+[project.urls]
+Homepage = "https://github.com/samueladeyemi/scraper"
+Repository = "https://github.com/samueladeyemi/scraper"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scraper"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_configs = true
+warn_return_any = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
