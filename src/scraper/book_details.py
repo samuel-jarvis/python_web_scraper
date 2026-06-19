@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 from scraper.repository.book_repository import BookRepository
 from scraper.models.book import BookCreate
 from scraper.logger import logger
+from scraper.paths import DATA_DIR
 
 books2Scrape = "http://books.toscrape.com"
 
@@ -85,7 +86,7 @@ for book in links:
 
     book_repo.create_book(BookCreate(**item))
 
-with open('books-description.json', 'w') as f:
+with open(DATA_DIR / 'books-description.json', 'w') as f:
     json.dump(data, f, ensure_ascii=False, indent=4)
 
 logger.info('Saved %d book descriptions to books-description.json', len(data))

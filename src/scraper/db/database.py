@@ -1,11 +1,24 @@
 import sqlite3
 from contextlib import contextmanager
-DB_PATH = 'books.db'
+import os
+from scraper.paths import DATA_DIR
+from pathlib import Path
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS books (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    book_url    TEXT NOT NULL UNIQUE,
+    price       TEXT NOT NULL CHECK (CAST(price AS REAL) > 0),
+    description TEXT NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
 
 
 @contextmanager
-def get_connection():
-    conn = sqlite3.connect(DB_PATH)
+def get_connection(db_path: Path = DATA_DIR) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -17,20 +30,7 @@ def get_connection():
         conn.close()
 
 
-def create_books_table():
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS books (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            book_url TEXT NOT NULL,
-            price REAL NOT NULL CHECK(price > 0),
-            description TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-
-def initialize_database():
-    create_books_table()
+def initialize_database(db_path: Path = DATA_DIR) -> None:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with get_connection(db_path) as conn:
+        conn.execute(SCHEMA)

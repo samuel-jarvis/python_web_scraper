@@ -30,6 +30,7 @@ htmlcov/
 
 # Scraper runtime output / data
 *.log
+data/
 output/
 *.db
 books.json
