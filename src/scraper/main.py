@@ -1,65 +1,49 @@
-import requests
-from bs4 import BeautifulSoup
-import sys
-from pprint import pprint
-import json
+from pydantic import ValidationError
+from scraper.db.database import initialize_database
+from scraper.http.client import fetch_html
+from scraper.parser.book_parser import parse_book_detail, parse_book_links
+from scraper.repository.book_repository import BookRepository
+from scraper.observability.logger import configure_logging, get_logger, new_run_id
+BASE_URL = "http://books.toscrape.com"
 
-headers = {
-    "User-Agent": "Mozilla/5.0"
-}
-
-url = "https://www.example.com"
-books2Scrape = "http://books.toscrape.com"
+logger = get_logger(__name__)
 
 
-def get_html(url):
+def main() -> None:
+    new_run_id()
+    configure_logging()
+    initialize_database()
+    repo = BookRepository()
+
     try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        return response.text
-    except requests.RequestException as e:
-        print('there was an error getting the page:', e)
-        sys.exit(1)
+        listing_html = fetch_html(BASE_URL)
+    except Exception:
+        logger.exception("failed to fetch the main page")
+        return
+
+    links = parse_book_links(listing_html, BASE_URL)
+    logger.info("found %d book links", len(links))
+
+    saved = skipped = 0
+
+    for url in links:
+        try:
+            html = fetch_html(url)
+            book = parse_book_detail(html, url)
+        except ValidationError as exc:
+            logger.warning("skipping %s — validation failed: %s", url, exc)
+            skipped += 1
+            continue
+        except Exception:
+            logger.exception("skipping %s - fetch/parse error", url)
+            skipped += 1
+            continue
+
+        repo.upsert_book(book)
+        saved += 1
+
+    logger.info("done: %d saved, %d skipped", saved, skipped)
 
 
-def parse_html(html):
-    html = get_html(books2Scrape)
-    soup = BeautifulSoup(html, "html.parser")
-
-    title_tag = soup.find("title")
-    title = title_tag.text if title_tag else None
-
-    print(title)
-
-    books = soup.select(".product_pod")
-
-    data = []
-
-    for book in books:
-        a_tag = book.select_one("h3 a")
-        a_text = a_tag.get_text(strip=True)
-
-        item = {
-            "name": a_text,
-            "price": book.select_one('.price_color').text
-        }
-
-        data.append(item)
-
-    pprint(data)
-    return data
-
-
-html = get_html(books2Scrape)
-books = parse_html(html)
-
-with open('books.json', 'w') as f:
-    json.dump(books, f, indent=4)
-
-
-# Get book and their details
-response = requests.get(url, headers=headers, timeout=10)
-soup = BeautifulSoup(response.text, "html.parser")
-# get links for the books pages
-book_links = soup.select_one('.product_pod .image_container a')
-Console.log(book_links)
+if __name__ == "__main__":
+    main()

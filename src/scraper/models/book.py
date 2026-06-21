@@ -1,3 +1,4 @@
+import json
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 from datetime import datetime
 from typing import Optional
@@ -14,6 +15,7 @@ class BookCreate(BaseModel):
         description="The price of the book must be greater than zero.",
     )
     description: str
+    information: dict[str, str] = Field(default_factory=dict)
 
     @field_validator('name')
     @classmethod
@@ -29,7 +31,22 @@ class BookCreate(BaseModel):
             cleaned = ''.join(c for c in value if c.isdigit() or c == '.')
             if not cleaned:
                 raise ValueError("Price must be a valid number.")
-        return cleaned
+            return cleaned
+        return value
+
+    @field_validator('information', mode='before')
+    @classmethod
+    def validate_information(cls, value: Optional[dict]) -> dict:
+        if value is None:
+            return {}
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise ValueError("Information must be valid JSON.") from exc
+        if not isinstance(value, dict):
+            raise ValueError("Information must be a dictionary.")
+        return value
 
 
 class Book(BookCreate):
@@ -43,3 +60,4 @@ class BookUpdate(BaseModel):
     price: Optional[Decimal] = Field(
         default=None, gt=0, max_digits=10, decimal_places=2)
     description: Optional[str] = None
+    information: Optional[dict[str, str]] = Field(default=None)

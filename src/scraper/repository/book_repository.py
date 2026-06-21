@@ -1,34 +1,38 @@
-from scraper.db.database import get_connection
+from scraper.db.database import DB_PATH, get_connection
 from scraper.models.book import Book, BookCreate, BookUpdate
+import json
 
 
 class BookRepository:
     def __init__(self, db_path=None):
-        self._db_path = db_path
+        self._db_path = db_path if db_path is not None else DB_PATH
 
     def create_book(self, book_create: BookCreate) -> Book:
         with get_connection(self._db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO books (name, book_url, price, description)
-                VALUES (?, ?, ?, ?)
-            """, (book_create.name, book_create.book_url, book_create.price, book_create.description))
+                INSERT INTO books (name, book_url, price, description, information)
+                VALUES (?, ?, ?, ?, ?)
+            """, (book_create.name, book_create.book_url, book_create.price, book_create.description, json.dumps(book_create.information, ensure_ascii=False)))
             book_id = cursor.lastrowid
         return self.get_book_by_id(book_id)
 
     def upsert_book(self, book_create: BookCreate) -> Book:
         data = book_create.model_dump(mode="json")
+        data["information"] = json.dumps(
+            data["information"], ensure_ascii=False)
         with get_connection(self._db_path) as conn:
             row = conn.execute(
                 """
-                INSERT INTO books (name, book_url, price, description)
-                VALUES (:name, :book_url, :price, :description)
-                ON CONFLICT(book_url) DO UPDATE SET
-                    name = excluded.name,
-                    price = excluded.price,
-                    description = excluded.description
-                RETURNING *
-                """, data
+                    INSERT INTO books (name, book_url, price, description, information)
+                    VALUES (:name, :book_url, :price, :description, :information)
+                    ON CONFLICT(book_url) DO UPDATE SET
+                        name = excluded.name,
+                        price = excluded.price,
+                        description = excluded.description,
+                        information = excluded.information
+                    RETURNING *
+                    """, data
             ).fetchone()
         return Book(**row) if row else None
 
@@ -61,7 +65,8 @@ class BookRepository:
                 SET name = :name,
                     book_url = :book_url,
                     price = :price,
-                    description = :description
+                    description = :description,
+                    information = :information
                 WHERE id = :id
             """, {**merged, "id": book_id})
 
