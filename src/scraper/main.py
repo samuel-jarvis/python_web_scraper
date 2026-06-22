@@ -4,6 +4,8 @@ from scraper.http.client import fetch_html
 from scraper.parser.book_parser import parse_book_detail, parse_book_links
 from scraper.repository.book_repository import BookRepository
 from scraper.observability.logger import configure_logging, get_logger, new_run_id
+from scraper.db.migrate import run_migrations
+
 BASE_URL = "http://books.toscrape.com"
 
 logger = get_logger(__name__)
@@ -12,7 +14,7 @@ logger = get_logger(__name__)
 def main() -> None:
     new_run_id()
     configure_logging()
-    initialize_database()
+    run_migrations()
     repo = BookRepository()
 
     try:
